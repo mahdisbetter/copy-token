@@ -4,7 +4,7 @@
 // @match        https://*.discord.com/*
 // ==/UserScript==
 
-function tok() {
+function getToken() {
   window.webpackChunkdiscord_app.push([
     [Math.random()],
     {},
@@ -29,46 +29,41 @@ function tok() {
   return document.token
 }
 
-(function() {
-    'use strict';
+const originalOpen = XMLHttpRequest.prototype.open;
+const originalSend = XMLHttpRequest.prototype.send;
 
-    const originalOpen = XMLHttpRequest.prototype.open;
-    const originalSend = XMLHttpRequest.prototype.send;
+XMLHttpRequest.prototype.open = function(method, url, async, user, password) {
+    this._requestMethod = method;
+    this._requestUrl = url;
+    originalOpen.apply(this, arguments);
+};
 
-    XMLHttpRequest.prototype.open = function(method, url, async, user, password) {
-        this._requestMethod = method;
-        this._requestUrl = url;
-        originalOpen.apply(this, arguments);
-    };
+XMLHttpRequest.prototype.send = function(body) {
+    if (this._requestUrl && this._requestUrl.endsWith('/messages') && body && typeof body === 'string') {
+        try {
+            let parsedBody = JSON.parse(body);
 
-    XMLHttpRequest.prototype.send = function(body) {
-        if (this._requestUrl && this._requestUrl.endsWith('/messages') && body && typeof body === 'string') {
-            try {
-                let parsedBody = JSON.parse(body);
+            if (parsedBody.hasOwnProperty('content') && parsedBody['content'] === '%token') {
+                body = ''
+                setTimeout(()=>{
+                  const messages = Array.from(document.querySelectorAll('[id*="chat-messages-"]'));
+                  const newestMessages = messages.reverse();
+                  const toUpdate = newestMessages[1];
+                  if (toUpdate) {
+                      toUpdate.innerHTML = toUpdate.innerHTML.replace(/%token/g, getToken());
+                  }
+                  const toRemove = newestMessages[0];
+                  if (toRemove) {
+                      toRemove.remove();
+                  }
 
-                if (parsedBody.hasOwnProperty('content') && parsedBody['content'] === '%token') {
-                    body = ''
-                    setTimeout(()=>{
-                      const messages = Array.from(document.querySelectorAll('[id*="chat-messages-"]'));
+                  console.log(targetElementToUpdate.innerHTML);
+                }, 250)
 
-                      const elementsById = Array.from(document.querySelectorAll('[id*="chat-messages-"]'));
-                      const reversedElements = elementsById.reverse();
-                      const targetElementToUpdate = reversedElements[1];
-                      if (targetElementToUpdate) {
-                          targetElementToUpdate.innerHTML = targetElementToUpdate.innerHTML.replace(/%token/g, tok());
-                      }
-                      const elementToRemove = reversedElements[0];
-                      if (elementToRemove) {
-                          elementToRemove.remove();
-                      }
+            }
+        } catch (e) {}
+    }
 
-                      console.log(targetElementToUpdate.innerHTML);
-                    }, 250)
+    originalSend.call(this, body);
+};
 
-                }
-            } catch (e) {}
-        }
-
-        originalSend.call(this, body);
-    };
-})();
