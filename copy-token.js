@@ -10,7 +10,6 @@ function getToken() {
     {},
     req => {
       if (!req.c) {
-        console.error('req.c is undefined or null');
         return;
       }
 
